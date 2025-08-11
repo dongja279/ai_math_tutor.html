@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Math Tutor (Vercel Starter)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 40px; line-height: 1.6; }
+    .card { max-width: 720px; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px; }
+    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #e5e7eb; cursor: pointer; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Vercel 배포 성공 👋</h1>
+    <p>이 페이지가 보이면 정적 퍼블리싱은 완료입니다.</p>
+    <p><button id="ping">/api/hello 호출</button></p>
+    <pre id="out">클릭해 테스트해보세요…</pre>
+  </div>
+  <script>
+    document.getElementById('ping').addEventListener('click', async () => {
+      const res = await fetch('/api/hello');
+      document.getElementById('out').textContent = await res.text();
+    });
+  </script>
+</body>
+</html>
