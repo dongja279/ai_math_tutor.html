@@ -3,25 +3,167 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Math Tutor (Vercel Starter)</title>
+  <title>AI 수학 튜터</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 40px; line-height: 1.6; }
-    .card { max-width: 720px; padding: 24px; border: 1px solid #e5e7eb; border-radius: 16px; }
-    button { padding: 10px 14px; border-radius: 10px; border: 1px solid #e5e7eb; cursor: pointer; }
-    code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+    :root { --bd:#e5e7eb; --muted:#6b7280; }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; margin: 24px; }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    .card { border:1px solid var(--bd); border-radius:16px; padding:20px; margin:14px 0; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; }
+    .col { flex:1 1 320px; }
+    h1 { font-size: 28px; margin: 6px 0 14px; }
+    h2 { font-size: 18px; margin: 0 0 8px; }
+    label { display:block; font-weight:600; margin:8px 0; }
+    input[type="text"], textarea, select { width:100%; box-sizing:border-box; border:1px solid var(--bd); border-radius:12px; padding:10px 12px; }
+    textarea { min-height: 120px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    button { padding:10px 14px; border:1px solid var(--bd); border-radius:12px; cursor:pointer; background:#fff; }
+    button.primary { border-color:#111; }
+    .actions { display:flex; gap:10px; }
+    .tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+    .tab { border:1px solid var(--bd); padding:6px 10px; border-radius:999px; cursor:pointer; }
+    .tab.active { border-color:#111; font-weight:700; }
+    .badge { display:inline-block; border:1px solid var(--bd); padding:3px 8px; border-radius:999px; font-size:12px; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#f8fafc; border:1px solid var(--bd); border-radius:12px; padding:12px; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Vercel 배포 성공 👋</h1>
-    <p>이 페이지가 보이면 정적 퍼블리싱은 완료입니다.</p>
-    <p><button id="ping">/api/hello 호출</button></p>
-    <pre id="out">클릭해 테스트해보세요…</pre>
+  <div class="wrap">
+    <h1>AI 수학 튜터</h1>
+    <div class="card">
+      <div class="tabs">
+        <span class="tab active" data-mode="text">텍스트 문제</span>
+        <span class="tab" data-mode="image">이미지 문제</span>
+      </div>
+      <div id="text-mode">
+        <label>문제 입력</label>
+        <textarea id="problem" placeholder="예) 두 점 A(2,3), B(8,15)를 지나는 직선의 기울기를 구하시오."></textarea>
+      </div>
+      <div id="image-mode" style="display:none;">
+        <label>문제 이미지 업로드 (선택)</label>
+        <input type="file" id="image" accept="image/*" />
+        <div class="muted">이미지 업로드 시, 아래 부연 설명(선택)을 함께 입력하면 정확도가 올라갑니다.</div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label>부연 설명(선택)</label>
+          <textarea id="notes" placeholder="문제의 조건을 글로 한 줄 보완해 주세요. (예: 정수 범위, 단위 등)"></textarea>
+        </div>
+        <div class="col">
+          <label>출력 스타일</label>
+          <select id="style">
+            <option value="korean">한국어(정답→풀이 단계)</option>
+            <option value="korean_brief">한국어(간단 정답→핵심 풀이)</option>
+            <option value="english">English (Answer → Steps)</option>
+          </select>
+          <label style="margin-top:12px;">난이도(힌트 강도)</label>
+          <select id="hint">
+            <option value="none">힌트 없음 (바로 정답과 풀이)</option>
+            <option value="light">가벼운 힌트 포함</option>
+            <option value="guided">단계별 힌트 포함</option>
+          </select>
+          <div style="margin-top:12px;" class="muted">
+            ✔️ 기본 정책: 질문을 먼저 하지 않습니다. 결과가 이상하면 아래 <b>다시풀기</b>를 눌러 다른 풀이를 받으세요.
+          </div>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:12px;">
+        <button class="primary" id="solve">풀기</button>
+        <button id="retry" title="다른 관점/샘플로 다시 풉니다">다시풀기</button>
+        <span id="status" class="badge" style="display:none;">요청 중…</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>결과</h2>
+      <div id="confidence" class="muted" style="display:none;"></div>
+      <pre id="answer">아직 결과가 없습니다.</pre>
+    </div>
   </div>
+
   <script>
-    document.getElementById('ping').addEventListener('click', async () => {
-      const res = await fetch('/api/hello');
-      document.getElementById('out').textContent = await res.text();
+    const tabs = document.querySelectorAll('.tab');
+    const textMode = document.getElementById('text-mode');
+    const imageMode = document.getElementById('image-mode');
+    let mode = 'text';
+
+    tabs.forEach(t => t.addEventListener('click', () => {
+      tabs.forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      mode = t.dataset.mode;
+      textMode.style.display = (mode==='text') ? '' : 'none';
+      imageMode.style.display = (mode==='image') ? '' : 'none';
+    }));
+
+    let lastSeed = Math.floor(Math.random()*1e9);
+    function nextSeed() { lastSeed = (lastSeed+1) % 1e9; return lastSeed; }
+
+    async function readImageAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function requestSolve(opts) {
+      const status = document.getElementById('status');
+      const ans = document.getElementById('answer');
+      const conf = document.getElementById('confidence');
+      status.style.display = 'inline-block';
+      ans.textContent = '풀이 중…';
+      conf.style.display = 'none';
+
+      const body = { ...opts, style: document.getElementById('style').value, hint: document.getElementById('hint').value };
+      const res = await fetch('/api/solve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+
+      status.style.display = 'none';
+      if (!res.ok) {
+        ans.textContent = '에러가 발생했습니다. 잠시 후 다시 시도하거나 다시풀기를 눌러주세요.';
+        return;
+      }
+      const data = await res.json();
+      ans.textContent = data.answer || '(빈 응답)';
+      if (typeof data.confidence === 'number') {
+        conf.style.display = '';
+        conf.textContent = `자가평가 신뢰도: ${Math.round(data.confidence*100)}%`;
+      }
+    }
+
+    document.getElementById('solve').addEventListener('click', async () => {
+      const notes = document.getElementById('notes').value.trim();
+      const seed = nextSeed();
+      if (mode === 'text') {
+        const problem = document.getElementById('problem').value.trim();
+        if (!problem) { alert('문제를 입력해 주세요.'); return; }
+        await requestSolve({ mode, problem, notes, seed });
+      } else {
+        const f = document.getElementById('image').files[0];
+        if (!f) { alert('이미지를 업로드해 주세요.'); return; }
+        const imageDataUrl = await readImageAsDataURL(f);
+        await requestSolve({ mode, imageDataUrl, notes, seed });
+      }
+    });
+
+    document.getElementById('retry').addEventListener('click', async () => {
+      // 같은 입력값으로 seed만 바꿔 재시도 → 다른 관점/샘플 유도
+      const notes = document.getElementById('notes').value.trim();
+      const seed = nextSeed();
+      if (mode === 'text') {
+        const problem = document.getElementById('problem').value.trim();
+        if (!problem) { alert('문제를 입력해 주세요.'); return; }
+        await requestSolve({ mode, problem, notes, seed, retry:true });
+      } else {
+        const f = document.getElementById('image').files[0];
+        if (!f) { alert('이미지를 업로드해 주세요.'); return; }
+        const imageDataUrl = await readImageAsDataURL(f);
+        await requestSolve({ mode, imageDataUrl, notes, seed, retry:true });
+      }
     });
   </script>
 </body>
