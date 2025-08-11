@@ -1,80 +1,224 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI 수학 튜터</title>
-  <style>
-    :root { --bd:#e5e7eb; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 32px; line-height: 1.6; }
-    .wrap { max-width: 820px; margin: 0 auto; }
-    .card { border:1px solid var(--bd); border-radius:16px; padding:20px; }
-    h1 { margin: 0 0 12px; }
-    label { display:block; font-weight:600; margin:10px 0 6px; }
-    textarea { width:100%; min-height:120px; padding:12px; border:1px solid var(--bd); border-radius:12px; box-sizing:border-box; }
-    button { padding:10px 14px; border:1px solid var(--bd); border-radius:12px; background:#fff; cursor:pointer; }
-    .row { display:flex; gap:10px; align-items:center; }
-    pre { background:#f8fafc; border:1px solid var(--bd); border-radius:12px; padding:12px; white-space:pre-wrap; word-break:break-word; }
-    .muted { color:#6b7280; font-size:13px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AI 수학 튜터 — 사진만 올리면 바로 풀이</title>
+<link rel="preconnect" href="https://api.openai.com">
+<style>
+  :root{
+    --bg:#0e1116; --panel:#141922; --panel2:#0f1520; --ink:#e8eef7;
+    --muted:#98a2b3; --accent:#8b5cf6; --accent2:#06b6d4; --line:#1f2937; --chip:#1b2230;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f7f9fc; --panel:#ffffff; --panel2:#ffffff; --ink:#202734;
+           --muted:#58647a; --accent:#6d28d9; --accent2:#0891b2; --line:#e7edf5; --chip:#f2f6fc; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;color:var(--ink);background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",Segoe UI,Roboto,Helvetica,Arial}
+  header{position:sticky;top:0;z-index:10;background:linear-gradient(90deg,#131a25cc,#0f1520cc);
+    border-bottom:1px solid #ffffff14;color:#fff;backdrop-filter:blur(8px)}
+  .container{max-width:1100px;margin:0 auto;padding:16px}
+  .brand{display:flex;gap:12px;align-items:center}
+  .logo{width:36px;height:36px;border-radius:50%;background:conic-gradient(from 140deg,var(--accent),var(--accent2))}
+  .brand h1{margin:0;font-size:18px}
+  .brand small{display:block;color:#cfe1ff;font-weight:500}
+  main{max-width:1100px;margin:20px auto;padding:0 16px;display:grid;gap:16px}
+  .grid{display:grid;gap:16px} @media(min-width:980px){.grid{grid-template-columns:360px 1fr}}
+  .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px;padding:16px}
+  .panel h2{margin:0 0 10px;color:#b8c3d6;font-size:14px}
+  .uploader{display:flex;gap:10px}.uploader .btn{flex:1} @media(max-width:520px){.uploader{flex-direction:column}}
+  .btn{cursor:pointer;border:none;border-radius:12px;padding:13px 16px;font-weight:800;background:#1b2230;color:#e8eef7;transition:.2s}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+  .btn.soft{background:var(--chip);color:var(--ink);border:1px solid var(--line)}
+  .btn.small{padding:8px 10px}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  select{width:100%;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .meter{height:8px;background:#0f1623;border-radius:999px;overflow:hidden;border:1px solid #ffffff16}
+  .meter>div{height:100%;width:0%;background:linear-gradient(90deg,#22d3ee,#a78bfa,#22c55e)}
+  #canvasWrap{border:1px dashed #89a3c91f;border-radius:14px;overflow:hidden;background:#0f172a;min-height:220px}
+  #imgCanvas{display:block;width:100%} .empty{display:flex;align-items:center;justify-content:center;height:220px;color:#94a3b8}
+  #chat .bubble{margin:12px 0;padding:16px;border-radius:14px;border:1px solid #ffffff17;background:#0f1623;color:#e7efff}
+  #chat .bubble header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .copy{border:1px solid #ffffff24;background:#101727;color:#e6eeff;border-radius:10px;padding:6px 10px;font-weight:700;cursor:pointer}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  input[type=file]{display:none}
+  .status{font-size:12px;color:#9fb1c8;margin-top:6px}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>AI 수학 튜터</h1>
-    <div class="card" style="margin-bottom:14px;">
-      <label for="problem">문제 입력</label>
-      <textarea id="problem" placeholder="예) 2x + 3 = 7, x 값을 구하시오."></textarea>
-      <div class="row" style="margin-top:12px;">
-        <button id="solveBtn">풀기 (Ctrl+Enter)</button>
-        <span id="status" class="muted"></span>
-      </div>
-      <div class="muted" style="margin-top:8px;">Tip: Enter만 누르면 줄바꿈, <b>Ctrl+Enter</b>로 바로 풀이 요청합니다.</div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin-top:0;">결과</h3>
-      <pre id="answer">아직 결과가 없습니다.</pre>
+<header>
+  <div class="container brand">
+    <div class="logo" aria-hidden="true"></div>
+    <div>
+      <h1>AI 수학 튜터</h1>
+      <small>사진만 올리면 <b>바로 풀이</b>! </small>
     </div>
   </div>
+</header>
 
-  <script>
-    const $ = (s) => document.querySelector(s);
-    const problemEl = $('#problem');
-    const answerEl = $('#answer');
-    const statusEl = $('#status');
-    const solveBtn = $('#solveBtn');
+<main class="grid">
+  <!-- 좌: 업로드/상태 -->
+  <section class="panel">
+    <h2>문제 사진 업로드</h2>
+    <div class="uploader" style="margin-top:6px">
+      <input id="imageGallery" type="file" accept="image/*">
+      <button id="btnGallery" class="btn soft" type="button">🖼 갤러리에서 선택</button>
+      <input id="imageCamera" type="file" accept="image/*" capture="environment">
+      <button id="btnCamera" class="btn primary" type="button">📷 카메라로 찍기</button>
+    </div>
 
-    async function solve() {
-      const problem = problemEl.value.trim();
-      if (!problem) { alert('문제를 입력해 주세요.'); return; }
-      statusEl.textContent = '풀이 중…';
-      answerEl.textContent = '';
-      try {
-        const res = await fetch('/api/solve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ problem })
-        });
-        if (!res.ok) {
-          const t = await res.text();
-          throw new Error(`HTTP ${res.status}: ${t}`);
-        }
-        const data = await res.json();
-        answerEl.textContent = data.answer || '(응답이 비어있습니다)';
-      } catch (e) {
-        answerEl.textContent = '에러: ' + (e?.message || e);
-      } finally {
-        statusEl.textContent = '';
-      }
-    }
+    <div style="margin-top:14px">
+      <label>모델</label>
+      <select id="model">
+        <option value="gpt-4o-mini" selected>gpt-4o-mini (빠름)</option>
+        <option value="gpt-4o">gpt-4o (정확)</option>
+      </select>
+    </div>
 
-    solveBtn.addEventListener('click', solve);
-    problemEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        solve();
-      }
-    });
-  </script>
+    <div style="margin-top:14px">
+      <label>진행 상황</label>
+      <div class="meter"><div id="meterBar"></div></div>
+      <div id="status" class="status">대기 중…</div>
+    </div>
+  </section>
+
+  <!-- 우: 미리보기 + 결과 -->
+  <section class="panel">
+    <h2>미리보기 & 결과</h2>
+    <div id="canvasWrap" style="margin-top:8px">
+      <div id="emptyMsg" class="empty">📷 아직 사진이 없어요. 위에서 선택하거나 찍어 주세요.</div>
+      <canvas id="imgCanvas"></canvas>
+    </div>
+    <div id="chat"></div>
+  </section>
+</main>
+
+<script>
+/* ===== DOM ===== */
+const inputGallery = document.getElementById("imageGallery");
+const inputCamera  = document.getElementById("imageCamera");
+const btnGallery   = document.getElementById("btnGallery");
+const btnCamera    = document.getElementById("btnCamera");
+const modelSelect  = document.getElementById("model");
+const canvas = document.getElementById("imgCanvas");
+const emptyMsg = document.getElementById("emptyMsg");
+const ctx = canvas.getContext("2d");
+const chat = document.getElementById("chat");
+const meterBar = document.getElementById("meterBar");
+const statusEl = document.getElementById("status");
+
+/* ===== 상태 ===== */
+let imageDataUrl = null;
+let busy = false;
+
+/* ===== 업로드 트리거 ===== */
+btnGallery.addEventListener("click", ()=> inputGallery.click());
+btnCamera .addEventListener("click", ()=> inputCamera.click());
+
+[inputGallery, inputCamera].forEach(inp=>{
+  inp.addEventListener("change", async (e)=>{
+    const file = e.target.files?.[0];
+    if(!file) return;
+    await drawImageOnCanvas(file);
+    chat.innerHTML = "";
+    await solve(false);  // 업로드 즉시 풀이
+    e.target.value = "";
+  });
+});
+
+/* ===== UI 유틸 ===== */
+function setBusy(b, msg){
+  busy = b;
+  statusEl.textContent = b ? (msg || "AI가 풀이 중…") : "대기 중…";
+  meterBar.style.width = b ? "70%" : "0%";
+  [btnGallery, btnCamera].forEach(bn => bn.disabled = b);
+}
+function bubble(title, html, withActions=false){
+  const box = document.createElement("div");
+  box.className = "bubble";
+  box.innerHTML = `
+    <header>
+      <strong>${title}</strong>
+      <button class="copy" onclick="copyMe(this)">복사</button>
+    </header>
+    <div class="copy-target">${(html||"").replaceAll("\n","<br>")}</div>
+  `;
+  if(withActions){
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    const retry = document.createElement("button");
+    retry.className = "btn soft";
+    retry.textContent = "🔁 다시풀기";
+    retry.onclick = ()=> solve(true);
+    actions.appendChild(retry);
+    box.appendChild(actions);
+  }
+  chat.appendChild(box);
+  chat.scrollTop = chat.scrollHeight;
+}
+window.copyMe = (btn)=>{
+  const txt = btn.parentElement.nextElementSibling.innerText;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const old = btn.textContent; btn.textContent = "✅ 복사됨"; setTimeout(()=>btn.textContent=old,1200);
+  });
+};
+
+/* ===== 캔버스: 크기 줄여 업로드(용량 절감) ===== */
+function drawImageOnCanvas(file){
+  return new Promise((resolve)=>{
+    const r = new FileReader();
+    r.onload = ev=>{
+      const srcUrl = ev.target.result;
+      const img = new Image();
+      img.onload = ()=>{
+        emptyMsg.style.display = "none";
+        const maxW = canvas.parentElement.clientWidth;
+        const scale = Math.min(1, maxW/img.width);
+        canvas.width = Math.floor(img.width*scale);
+        canvas.height= Math.floor(img.height*scale);
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        // 압축본 dataURL로 교체 (전송용량↓)
+        imageDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        resolve();
+      };
+      img.src = srcUrl;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+/* ===== 서버리스 API 호출 ===== */
+async function callBackend({retry=false}={}){
+  const res = await fetch('/api/solve',{
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ imageDataUrl, model: modelSelect.value, retry })
+  });
+  if(!res.ok){
+    const t = await res.text();
+    throw new Error(`HTTP ${res.status}: ${t}`);
+  }
+  return res.json();
+}
+
+/* ===== 실행 ===== */
+async function solve(retry=false){
+  if(!imageDataUrl){ return; }
+  try{
+    setBusy(true, retry ? "다시 풀어보는 중…" : "AI가 풀이 중…");
+    const { answer } = await callBackend({ retry });
+    bubble(retry ? "재풀이 결과" : "풀이 & 정답", answer, true);
+    setBusy(false, "");
+    meterBar.style.width = "100%"; statusEl.textContent = "완료!";
+  }catch(e){
+    setBusy(false, ""); bubble("오류", e.message || "요청 중 오류");
+  }
+}
+
+/* 초기 안내 */
+bubble("안내","사진을 올리면 제가 <b>바로 풀이</b>해요. 결과가 이상하면 아래 <b>다시풀기</b> 버튼을 눌러 다른 관점으로 재검토할 수 있어요.");
+</script>
 </body>
 </html>
